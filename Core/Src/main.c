@@ -18,11 +18,15 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "i2c.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "u8g2.h"
+#include <stdio.h>
+#include "ds3231.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -166,7 +170,13 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_USART1_UART_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+  DS3231_Init(&hi2c1);
+  DS3231_SetRateSelect(DS3231_1HZ);
+  // DS3231_SetFullTime(8, 0, 0);
+  // DS3231_SetFullDate(1, 8, 4, 2024);
   /* U8g2的初始化 */
   u8g2_Setup_ssd1306_i2c_128x64_noname_f(&u8g2, U8G2_R0, u8x8_byte_sw_i2c,
                                          u8g2_gpio_and_delay_stm32);
@@ -186,21 +196,41 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    u8g2_ClearBuffer(&u8g2);
     HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-    u8g2_SetFont(&u8g2, u8g2_font_6x10_tf);
-    uint16_t x = 0;
-    uint8_t y = 10;
-    for (uint8_t i = 32; i < 128; i++) {
-      u8g2_DrawGlyph(&u8g2, x, y, i);
-      x += 6;
-      if (x >= 128) {
-        x = 0;
-        y += 10;
-      }
-      u8g2_SendBuffer(&u8g2);
-    }
-    HAL_Delay(50);
+    uint8_t sec = DS3231_GetSecond();
+    uint8_t min = DS3231_GetMinute();
+    uint8_t hour = DS3231_GetHour();
+    uint8_t day = DS3231_GetDate();
+    uint8_t month = DS3231_GetMonth();
+    uint16_t year = DS3231_GetYear();
+    // printf("Time: %02d:%02d:%02d, Date: %02d/%02d/%04d\r\n", hour, min, sec, day, month, year);
+
+    u8g2_ClearBuffer(&u8g2);
+    u8g2_SetFont(&u8g2, u8g2_font_8x13_tr);
+    // 将时间显示在屏幕上
+    char date[20], time[20];
+    sprintf(date, "%04d-%02d-%02d", year, month, day);
+    sprintf(time, "%02d:%02d:%02d", hour, min, sec);
+    // 画个矩形框把时间显示在里面
+    u8g2_DrawFrame(&u8g2, 0, 0, 128, 64);
+    // 居中显示
+    u8g2_DrawStr(&u8g2, (128 - u8g2_GetStrWidth(&u8g2, date)) / 2, 20, date);
+    u8g2_DrawStr(&u8g2, (128 - u8g2_GetStrWidth(&u8g2, time)) / 2, 40, time);
+    u8g2_SendBuffer(&u8g2);
+
+    // uint16_t x = 0;
+    // uint8_t y = 10;
+    // for (uint8_t i = 32; i < 128; i++) {
+    //   u8g2_DrawGlyph(&u8g2, x, y, i);
+    //   x += 6;
+    //   if (x >= 128) {
+    //     x = 0;
+    //     y += 10;
+    //   }
+    //   u8g2_SendBuffer(&u8g2);
+    // }
+
+    HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }
